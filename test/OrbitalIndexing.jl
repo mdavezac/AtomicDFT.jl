@@ -3,8 +3,19 @@
     @test_throws DomainError OrbitalIndex(3, -1)
     @test_throws DomainError OrbitalIndex(3, 5)
 
+    @testset ">> Operators" begin
+        @test OrbitalIndex(0, 0) == OrbitalIndex(0, 0)
+        @test OrbitalIndex(2, 1) == OrbitalIndex(2, 1)
+        @test OrbitalIndex(2, 1) != OrbitalIndex(2, 0)
+        @test OrbitalIndex(2, 1) ≠ OrbitalIndex(2, 0)
+
+        @test OrbitalIndex(2, 1) > OrbitalIndex(2, 0)
+        @test OrbitalIndex(2, 1) > OrbitalIndex(1, 0)
+        @test OrbitalIndex(2, 1) < OrbitalIndex(3, 0)
+    end
+
     @testset ">> Linear indexing for first numbers" begin
-        index = 0
+        index = 1
         for n in 0:100
             for l in 0:n
                 orb = OrbitalIndex(n, l)
@@ -35,4 +46,13 @@
 		seekstart(buffer)
 		@test readstring(buffer) == "n=12, l=4"
 	end
+
+    @testset ">> looping" begin
+        index = 3
+        for u in nl"1,1":nl"5, 2"
+            @test convert(Integer, u) == index
+            index += 1
+        end
+        @test convert(Integer, nl"5, 3") == index
+    end
 end
