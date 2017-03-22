@@ -47,12 +47,30 @@
 		@test readstring(buffer) == "n=12, l=4"
 	end
 
-    @testset ">> looping" begin
+    @testset ">> looping by 1" begin
         index = 3
         for u in nl"1,1":nl"5, 2"
             @test convert(Integer, u) == index
             index += 1
         end
         @test convert(Integer, nl"5, 3") == index
+    end
+
+    @testset ">> looping by (n, 0)" begin
+        n = 1
+        index = 0
+        for u in nl"1,1":nl"2, 0":nl"5, 2"
+            @test u.l == 1
+            @test u.n == n
+            index = convert(Integer, u)
+            n += 2
+        end
+        @test index == convert(Integer, nl"5, 1")
+    end
+
+    @testset ">> looping by (n, l)" begin
+        expected = [OrbitalIndex(1, 1), OrbitalIndex(4, 3), OrbitalIndex(7, 5)]
+        actual = [u for u in nl"1,1":nl"3, 2":nl"9, 2"]
+        @test expected == actual
     end
 end

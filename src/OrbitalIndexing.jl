@@ -19,9 +19,12 @@ function OrbitalIndex(n::Integer, l::Integer)
 end
 
 Base.isequal(a::OrbitalIndex, b::OrbitalIndex) = a.n ==  b.n && a.l == b.l
-!=(a::OrbitalIndex, b::OrbitalIndex) = a.n !=  b.n || a.l != b.l
 Base.isless(a::OrbitalIndex, b::OrbitalIndex) = a.n < b.n || (a.n == b.n && a.l < b.l)
 
+function Base.promote_rule{I <: Integer, II <: Integer}(::Type{OrbitalIndex{I}},
+                                                        ::Type{OrbitalIndex{II}})
+    OrbitalIndex{promote_type(I, II)}
+end
 function Base.convert(::Type{Integer}, i::OrbitalIndex)
     convert(typeof(i).parameters[1], (i.n * i.n + i.n) / 2) + i.l + 1
 end
@@ -44,27 +47,42 @@ macro nl_str(s)
 end
 
 
-function Base.convert{I, II}(::Type{OrbitalIndex{I}}, a::OrbitalIndex{II})
-	OrbitalIndex{I}(convert(I, a.n), convert(II, a.l))
-end
-
-""" Range of orbitals with quantum numbers n, l """
+""" Unit range of orbitals with quantum numbers n, l """
 immutable OrbitalIndexUnitRange{I <: Integer} <: AbstractUnitRange{OrbitalIndex{I}}
     start::OrbitalIndex{I}
     stop::OrbitalIndex{I}
 end
 
-function Base.range(a::OrbitalIndex, b::OrbitalIndex)
-	const I = promote_type(typeof(a).parameters[1], typeof(b).parameters[1])
-	OrbitalIndexUnitRange{I}(convert(OrbitalIndex{I}, a), convert(OrbitalIndex{I}, b))
-end
-Base.colon(a::OrbitalIndex, b::OrbitalIndex) = range(a, b)
-function Base.length(r::OrbitalIndexUnitRange)
-    convert(Integer, r.stop) - convert(Integer, r.start)
+""" Step range of through orbitals with quantum numbers n, l
+
+    At each iteration, the step (n', l') is added to the current index. If l' + l₀ > n' +
+    n₀, then, the iteration wraps to n₁ = n' + n₀ and l₁ = l' + l₀ - n' - n₀.
+"""
+immutable OrbitalIndexRange{I <: Integer} <: OrdinalRange{OrbitalIndex{I}, OrbitalIndex{I}}
+  start::OrbitalIndex{I}
+  step::OrbitalIndex{I}
+  stop::OrbitalIndex{I}
 end
 
-Base.start{I <: Integer}(r::OrbitalIndexUnitRange{I}) = r.start
-function Base.next{I <: Integer}(iter::OrbitalIndexUnitRange{I}, state::OrbitalIndex)
+function Base.colon(start::OrbitalIndex, stop::OrbitalIndex)
+	OrbitalIndexUnitRange(promote(start, stop)...)
+end
+
+function Base.colon(start::OrbitalIndex, step::OrbitalIndex, stop::OrbitalIndex)
+    OrbitalIndexRange(promote(start, step, stop)...)
+end
+
+Base.length(r::OrbitalIndexUnitRange) = convert(Integer, r.stop) - convert(Integer, r.start)
+function Base.length(r::OrbitalIndexRange)
+    index = 0
+    for u in r
+        index += 1
+    end
+    index
+end
+
+Base.start(r::Union{OrbitalIndexUnitRange, OrbitalIndexRange}) = r.start
+function Base.next(iter::OrbitalIndexUnitRange, state::OrbitalIndex)
     if state.l == state.n
         nstate = OrbitalIndex(state.n + 1, 0)
     else
@@ -72,6 +90,8 @@ function Base.next{I <: Integer}(iter::OrbitalIndexUnitRange{I}, state::OrbitalI
     end
     state, nstate
 end
-function Base.done{I <: Integer}(iter::OrbitalIndexUnitRange{I}, state::OrbitalIndex)
-    state > iter.stop
+function Base.next(iter::OrbitalIndexRange, state::OrbitalIndex)
+    state, OrbitalIndex(state.n + iter.step.n, state.l + iter.step.l)
 end
+Base.done(iter::OrbitalIndexUnitRange, state::OrbitalIndex) = state > iter.stop
+Base.done(iter::OrbitalIndexRange, state::OrbitalIndex) = state > iter.stop
