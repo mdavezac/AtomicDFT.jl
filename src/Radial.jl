@@ -35,22 +35,6 @@ function integral!(f::Function, axis::AbstractArray,
     result
 end
 
-@traitfn function similar_potential_from_rho(U::Type, ρ::::(!HasSpinDim))
-    similar(ρ, U)
-end
-@traitfn function similar_potential_from_rho(U::Type, ρ::::HasSpinDim)
-    similar(view(ρ, Axis{:spin}(:↑)), U)
-end
-
-function similar_potential{Q <: DFTUnits.Ρ}(ρ::AxisArray{Q})
-    @argcheck :radius ∈ axisnames(ρ)
-    const i = findfirst(axisnames(ρ), :radius)
-    const axis = axisvalues(ρ)[i]
-    T = typeof(one(eltype(ρ)) / one(eltype(axis)))
-    U = HartreeUnits.ϵ{T}
-    fill!(similar_potential_from_rho(U, ρ), zero(U))
-end
-
 radial_hartree{Q <: DFTUnits.Ρ}(ρ::AxisArray{Q}) = radial_hartree!(ρ, similar_potential(ρ))
 
 @inline function radial_hartree!{T <: DFTUnits.Ρ, Q <: DFTUnits.Ε}(ρ::AxisArray{T},
@@ -85,3 +69,36 @@ function add_radial_hartree!(ρ::AbstractArray, potential::AbstractArray,
 
     potential
 end
+
+# immutable LDAPotential{T <: LibXC.CReal} <: AbstractPotential
+#     functional::XCFunctional{T}
+#     work::Array{T}
+# end
+#
+#
+# function RadialKohnSham(xc::Vararg{Symbol}; charge::Unitful.ChargeUnit=1u"e₀",
+#                         polarized::Bool=false)
+#     LDARadialKohnSham(map(x -> XCFunctional(x, polarized), xc), charge, ρ)
+# end
+#
+# function add_potential!{Ρ <: DFTUnits.Ρ, 𝐕 <: DFTUnits.Ε}(func::XCFunctional,
+#                                                           ρ::AxisArray{Q},
+#                                                           potential::AxisArray{𝐕})
+#    potential
+# end
+#
+# function potential!{Ρ <: DFTUnits.Ρ, 𝐕 <: DFTUnits.Ε}(func::LDARadialKohnSham,
+#                                                       ρ::AxisArray{Q},
+#                                                       potential::AxisArray{𝐕})
+#     @argcheck size(ρ) == size(potential)
+#     fill!(potential, zero(eltype(potential)))
+#
+#     𝐯 = potential(func.ϵxcs[1], ρ)
+#     potential += 𝐯
+#
+#     for i in eachindex(drop(func.ϵxcs, 1))
+#         add_potential!(func.ϵxcs[1], ρ, 𝐯)
+#     end
+#
+#     radial_hartree!(ρ, ∂ϵ_∂ρ)
+# end

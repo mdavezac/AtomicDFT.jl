@@ -1,7 +1,9 @@
+module AtomicDFTTests
 using AtomicDFT
 using AxisArrays
 using Unitful, UnitfulHartree
 using Base.Test
+using LibXC
 
 @testset "Orbital Indexing" begin
   include("OrbitalIndexing.jl")
@@ -14,4 +16,9 @@ end
 @testset "Radial" begin
     include("Radial.jl")
 end
-nothing
+
+@testset "Potentials" begin
+    include("Potentials.jl")
+end
+
+end

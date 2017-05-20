@@ -36,3 +36,24 @@ function density_array{Q <: DFTUnits.Ρ}(T::Type{Q}, spin::Bool, args...; kwargs
     zeros_axisarray(T, spin, args...; kwargs...)
 end
 
+@traitfn function similar_potential_from_rho(U::Type, ρ::::(!HasSpinDim))
+    similar(ρ, U)
+end
+@traitfn function similar_potential_from_rho(U::Type, ρ::::HasSpinDim)
+    similar(view(ρ, Axis{:spin}(:↑)), U)
+end
+
+"""
+    $(SIGNATURES)
+
+Creates an axis arrays for the potential, guessing the exact type from the type of ρ.
+"""
+function similar_potential{Q <: DFTUnits.Ρ}(ρ::AxisArray{Q})
+    @argcheck :radius ∈ axisnames(ρ)
+    const i = findfirst(axisnames(ρ), :radius)
+    const axis = axisvalues(ρ)[i]
+    T = typeof(one(eltype(ρ)) / one(eltype(axis)))
+    U = HartreeUnits.ϵ{T}
+    fill!(similar_potential_from_rho(U, ρ), zero(U))
+end
+
