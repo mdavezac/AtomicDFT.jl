@@ -5,17 +5,17 @@ immutable OrbitalIndex{I <: Integer}
     """ Orbital momentum number """
     l::I
     function OrbitalIndex(n::I, l::I)
-        @argcheck n ≥ 0 DomainError()
-        @argcheck 0 ≤ l ≤ n DomainError()
+        @argcheck n ≥ 0
+        @argcheck 0 ≤ l ≤ n
         new(n, l)
     end
 end
 
 function OrbitalIndex(n::Integer, l::Integer)
-    @argcheck n ≥ 0 DomainError()
-    @argcheck 0 ≤ l ≤ n DomainError()
-    const I = promote_type(typeof(n), typeof(l))
-    OrbitalIndex{I}(n, l)
+    @argcheck n ≥ 0
+    @argcheck 0 ≤ l ≤ n
+    const ITYPE = promote_type(typeof(n), typeof(l))
+    OrbitalIndex{ITYPE}(n, l)
 end
 
 Base.isequal(a::OrbitalIndex, b::OrbitalIndex) = a.n ==  b.n && a.l == b.l
