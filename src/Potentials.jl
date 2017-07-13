@@ -1,20 +1,20 @@
-abstract AbstractPotential
-immutable ConstantPotential{T <: Number} <: AbstractPotential
+abstract type AbstractPotential end
+struct ConstantPotential{T <: Number} <: AbstractPotential
     _::T
 end
-immutable CoeffPotential{P <: AbstractPotential, T <: Number} <: AbstractPotential
+struct CoeffPotential{P <: AbstractPotential, T <: Number} <: AbstractPotential
     potential::P
     coefficient::T
 end
-immutable PotentialFunction{P <: AbstractPotential, F <: Function} <: AbstractPotential
+struct PotentialFunction{P <: AbstractPotential, F <: Function} <: AbstractPotential
     potential::P
     func::F
 end
-immutable PotentialExponent{P <: AbstractPotential, T <: Number} <: AbstractPotential
+struct PotentialExponent{P <: AbstractPotential, T <: Number} <: AbstractPotential
     potential::P
     exponent::T
 end
-immutable PotentialFold{POTS <: NTuple, O <: Function} <: AbstractPotential
+struct PotentialFold{POTS <: NTuple, O <: Function} <: AbstractPotential
     _::POTS
     op::O
 end

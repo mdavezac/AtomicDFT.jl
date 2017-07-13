@@ -13,9 +13,11 @@ const HartreeUnits = Units;
 
 export OrbitalIndex, @nl_str
 
+macro lintpragma(s) end
+
 include("OrbitalIndexing.jl")
 include("Traits.jl")
 include("ArrayCreation.jl")
-include("Potentials.jl")
+# include("Potentials.jl")
 include("Radial.jl")
 end # module

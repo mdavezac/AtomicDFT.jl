@@ -10,6 +10,20 @@ end
 function trapz(step::Number, y::AbstractArray)
     step * (sum(y) - (y[1] + y[end]) / 2)
 end
+function integral!(f::Function, axis::AbstractArray,
+                   y::AbstractArray, result::AbstractArray)
+    @argcheck length(axis) == length(y)
+    @argcheck length(y) == length(result)
+    y0 = f(axis[1], y[1])
+    @argcheck dimension(axis[1] * y0) == dimension(eltype(result))
+    result[1] = 0 * unit(eltype(result))
+    for i in 2:length(result)
+        y1 = f(axis[i], y[i])
+        result[i] = result[i - 1] + (axis[i] - axis[i - 1]) * (y1 + y0) / 2
+        y0 = y1
+    end
+    result
+end
 function integral(f::Function, axis::AbstractArray, y::AbstractArray)
     x0, y0 = zero(eltype(axis)), zero(eltype(y))
     f0 = f(x0, y0)
@@ -21,22 +35,25 @@ function integral(f::Function, axis::AbstractArray, y::AbstractArray)
     result = similar(y, U)
     integral!(f, axis, y, result)
 end
-function integral!(f::Function, axis::AbstractArray,
-                   y::AbstractArray, result::AbstractArray)
-    @argcheck length(axis) == length(y) == length(result)
-    y0 = f(axis[1], y[1])
-    @argcheck dimension(axis[1] * y0) == dimension(eltype(result))
-    result[1] = 0 * unit(eltype(result))
-    for i in 2:length(result)
-        y1 = f(axis[i], y[i])
-        result[i] = result[i - 1] + (axis[i] - axis[i - 1]) * (y1 + y0) / 2
-        y0 = y1
-    end
-    result
+
+function add_radial_hartree!(ρ::AbstractArray, potential::AbstractArray,
+                             axis::AbstractArray)
+    @argcheck axis[1] ≈ zero(eltype(axis))
+    @argcheck length(ρ) == length(potential)
+    @argcheck length(potential) == length(axis)
+    @argcheck all(axis[2:end] .> (0 * unit(eltype(axis))))
+    const N = length(axis)
+
+    # e²/(4πϵ₀)4π/r \int_0^r r'^2 * ρ(r') dr'
+    ∫r²ρdr = integral((x, y) -> x*x*y, axis, ρ)
+    potential[2:end] .+= (view(∫r²ρdr, 2:N) ./ view(axis, 2:N))u"e₀^2*ϵ₀^-1"
+
+    # e²/(4πϵ₀)4π \int_0^r r' * ρ(r') dr'
+    ∫rρdr = integral((x, y) -> x*y, axis, ρ)
+    potential[1:end] .+= (∫rρdr[end] - ∫rρdr)u"e₀^2*ϵ₀^-1"
+
+    potential
 end
-
-radial_hartree{Q <: DFTUnits.Ρ}(ρ::AxisArray{Q}) = radial_hartree!(ρ, similar_potential(ρ))
-
 @inline function radial_hartree!{T <: DFTUnits.Ρ, Q <: DFTUnits.Ε}(ρ::AxisArray{T},
                                                                    potential::AxisArray{Q})
     radial_hartree!(SimpleTraits.trait(AtomicDFT.HasSpinDim{typeof(ρ)}), ρ, potential)
@@ -52,23 +69,9 @@ end
     add_radial_hartree!(view(ρ, Axis{:spin}(:↑)) .+ view(ρ, Axis{:spin}(:↓)),
                         potential, axisvalues(ρ)[i])
 end
-function add_radial_hartree!(ρ::AbstractArray, potential::AbstractArray,
-                             axis::AbstractArray)
-    @argcheck axis[1] ≈ zero(eltype(axis))
-    @argcheck length(ρ) == length(potential) == length(axis)
-    @argcheck all(axis[2:end] .> (0 * unit(eltype(axis))))
-    const N = length(axis)
+@lintpragma("Ignore use of undeclared variable similar_potential")
+radial_hartree{Q <: DFTUnits.Ρ}(ρ::AxisArray{Q}) = radial_hartree!(ρ, similar_potential(ρ))
 
-    # e²/(4πϵ₀)4π/r \int_0^r r'^2 * ρ(r') dr'
-    ∫r²ρdr = integral((x, y) -> x*x*y, axis, ρ)
-    potential[2:end] .+= (view(∫r²ρdr, 2:N) ./ view(axis, 2:N))u"e₀^2*ϵ₀^-1"
-
-    # e²/(4πϵ₀)4π \int_0^r r' * ρ(r') dr'
-    ∫rρdr = integral((x, y) -> x*y, axis, ρ)
-    potential[1:end] .+= (∫rρdr[end] - ∫rρdr)u"e₀^2*ϵ₀^-1"
-
-    potential
-end
 
 # immutable LDAPotential{T <: LibXC.CReal} <: AbstractPotential
 #     functional::XCFunctional{T}

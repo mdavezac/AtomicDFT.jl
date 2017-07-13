@@ -17,8 +17,8 @@ end
     include("Radial.jl")
 end
 
-@testset "Potentials" begin
-    include("Potentials.jl")
-end
+# @testset "Potentials" begin
+#     include("Potentials.jl")
+# end
 
 end

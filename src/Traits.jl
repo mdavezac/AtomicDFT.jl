@@ -12,5 +12,6 @@ function is_spin_polarized(array::AxisArray)
 end
 @inline is_spin_polarized{T <: AxisArray}(::Type{T}) = :spin ∈ axisnames(T)
 
+@lintpragma("Ignore use of undeclared variable X")
 @traitdef HasSpinDim{X}
 @traitimpl HasSpinDim{X} <- is_spin_polarized(X)

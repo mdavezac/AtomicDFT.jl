@@ -1,7 +1,7 @@
 @testset "> Orbital indexing" begin
-    @test_throws DomainError OrbitalIndex(-1, -2)
-    @test_throws DomainError OrbitalIndex(3, -1)
-    @test_throws DomainError OrbitalIndex(3, 5)
+    @test_throws ArgumentError OrbitalIndex(-1, -2)
+    @test_throws ArgumentError OrbitalIndex(3, -1)
+    @test_throws ArgumentError OrbitalIndex(3, 5)
 
     @testset ">> Operators" begin
         @test OrbitalIndex(0, 0) == OrbitalIndex(0, 0)

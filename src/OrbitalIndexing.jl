@@ -1,21 +1,25 @@
+using ArgCheck
+
 """ Indexing with respect to first two quantum numbers """
 immutable OrbitalIndex{I <: Integer}
     """ Primary quantum number """
     n::I
     """ Orbital momentum number """
     l::I
-    function OrbitalIndex(n::I, l::I)
+
+    OrbitalIndex{I}(n::I, l::I) where I <: Integer = begin
         @argcheck n ≥ 0
-        @argcheck 0 ≤ l ≤ n
+        @argcheck 0 ≤ l
+        @argcheck l ≤ n
         new(n, l)
     end
 end
 
-function OrbitalIndex(n::Integer, l::Integer)
+OrbitalIndex(n::Integer, l::Integer) = begin
     @argcheck n ≥ 0
-    @argcheck 0 ≤ l ≤ n
-    const ITYPE = promote_type(typeof(n), typeof(l))
-    OrbitalIndex{ITYPE}(n, l)
+    @argcheck 0 ≤ l
+    @argcheck l ≤ n
+    OrbitalIndex{promote_type(typeof(n), typeof(l))}(n, l)
 end
 
 Base.isequal(a::OrbitalIndex, b::OrbitalIndex) = a.n ==  b.n && a.l == b.l
@@ -82,7 +86,7 @@ function Base.length(r::OrbitalIndexRange)
 end
 
 Base.start(r::Union{OrbitalIndexUnitRange, OrbitalIndexRange}) = r.start
-function Base.next(iter::OrbitalIndexUnitRange, state::OrbitalIndex)
+function Base.next(::OrbitalIndexUnitRange, state::OrbitalIndex)
     if state.l == state.n
         nstate = OrbitalIndex(state.n + 1, 0)
     else
