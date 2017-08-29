@@ -1,3 +1,6 @@
+module OrbitalIndices
+export OrbitalIndex, @nl_str
+
 using ArgCheck
 
 """ Indexing with respect to first two quantum numbers """
@@ -25,22 +28,16 @@ end
 Base.isequal(a::OrbitalIndex, b::OrbitalIndex) = a.n ==  b.n && a.l == b.l
 Base.isless(a::OrbitalIndex, b::OrbitalIndex) = a.n < b.n || (a.n == b.n && a.l < b.l)
 
-function Base.promote_rule{I <: Integer, II <: Integer}(::Type{OrbitalIndex{I}},
-                                                        ::Type{OrbitalIndex{II}})
-    OrbitalIndex{promote_type(I, II)}
-end
-function Base.convert(::Type{Integer}, i::OrbitalIndex)
+Base.convert(::Type{Integer}, i::OrbitalIndex) =
     convert(typeof(i).parameters[1], (i.n * i.n + i.n) / 2) + i.l + 1
-end
-function Base.convert(::Type{OrbitalIndex}, i::Integer)
+Base.convert(::Type{OrbitalIndex}, i::Integer) = begin
     n = trunc(typeof(i), (-1 + sqrt(8i - 7))/2)
     @assert n * (n + 1) ≤ 2i ≤ (n + 1) * (n + 2)
     OrbitalIndex{typeof(i)}(n, i - 1 - convert(typeof(i), (n * n + n) / 2))
 end
 
-function Base.print(io::IO, orb::OrbitalIndex)
-	print(io, "n=", orb.n, ", l=", orb.l)
-end
+Base.print(io::IO, orb::OrbitalIndex) = print(io, "n=", orb.n, ", l=", orb.l)
+
 
 macro nl_str(s)
     args = [parse(Int64, u) for u in split(s, ",")]
@@ -99,3 +96,4 @@ function Base.next(iter::OrbitalIndexRange, state::OrbitalIndex)
 end
 Base.done(iter::OrbitalIndexUnitRange, state::OrbitalIndex) = state > iter.stop
 Base.done(iter::OrbitalIndexRange, state::OrbitalIndex) = state > iter.stop
+end
