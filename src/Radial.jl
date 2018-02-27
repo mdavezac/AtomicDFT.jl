@@ -1,21 +1,30 @@
+module Radial
+export radial_hartree_potential, radial_hartree_potential!, RadialPotential
+using DocStringExtensions
+using ArgCheck
+using Unitful
+using LibXC: XCFunctional, spin, family
+using AxisArrays: axisnames, axisvalues
+using Unitful: dimension, unit, ustrip
+using DFTShims: SpinCategory, is_spin_polarized, Dispatch, SpinDegenerate, ColinearSpin
+const DD = Dispatch.Dimensions
+const DH = Dispatch.Hartree
+
 """
     $(SIGNATURES)
 
 One dimesional trapezoidal integration over a regularly discretized axis.
 """
-function trapz(x::StepRange, y::AbstractArray)
+trapz(x::StepRange, y::AbstractArray) = begin
     @assert length(x) == length(y)
     trapz(x.step, y)
 end
-function trapz(step::Number, y::AbstractArray)
-    step * (sum(y) - (y[1] + y[end]) / 2)
-end
-function integral!(f::Function, axis::AbstractArray,
-                   y::AbstractArray, result::AbstractArray)
+trapz(step::Number, y::AbstractArray) = step * (sum(y) - (y[1] + y[end]) / 2)
+integral!(f::Function, axis::AbstractArray, y::AbstractArray, result::AbstractArray) = begin
     @argcheck length(axis) == length(y)
     @argcheck length(y) == length(result)
     y0 = f(axis[1], y[1])
-    @argcheck dimension(axis[1] * y0) == dimension(eltype(result))
+    @argcheck dimension(oneunit(eltype(axis)) * y0) == dimension(eltype(result))
     result[1] = 0 * unit(eltype(result))
     for i in 2:length(result)
         y1 = f(axis[i], y[i])
@@ -24,20 +33,16 @@ function integral!(f::Function, axis::AbstractArray,
     end
     result
 end
-function integral(f::Function, axis::AbstractArray, y::AbstractArray)
+integral(f::Function, axis::AbstractArray, y::AbstractArray) = begin
     x0, y0 = zero(eltype(axis)), zero(eltype(y))
     f0 = f(x0, y0)
-    if dimension(f0) == dimension(x0)^-1
-        U = typeof(ustrip(x0 * f0))
-    else
-        U = typeof(x0 * f0)
-    end
-    result = similar(y, U)
+    result = similar(y, typeof(x0 * f0))
     integral!(f, axis, y, result)
 end
 
-function add_radial_hartree!(ρ::AbstractArray, potential::AbstractArray,
-                             axis::AbstractArray)
+add_radial_hartree_potential!(potential::AbstractArray,
+                              ρ::AbstractArray,
+                              axis::AbstractArray) = begin
     @argcheck axis[1] ≈ zero(eltype(axis))
     @argcheck length(ρ) == length(potential)
     @argcheck length(potential) == length(axis)
@@ -54,54 +59,64 @@ function add_radial_hartree!(ρ::AbstractArray, potential::AbstractArray,
 
     potential
 end
-@inline function radial_hartree!{T <: DFTUnits.Ρ, Q <: DFTUnits.Ε}(ρ::AxisArray{T},
-                                                                   potential::AxisArray{Q})
-    radial_hartree!(SimpleTraits.trait(AtomicDFT.HasSpinDim{typeof(ρ)}), ρ, potential)
-end
-@traitfn function radial_hartree!(ρ::::(!HasSpinDim), potential)
+radial_hartree_potential!(v::DD.AxisArrays.ϵ, ρ::DD.AxisArrays.ρ) =
+    radial_hartree_potential!(v, SpinCategory(ρ), ρ)
+radial_hartree_potential!(potential::DD.AxisArrays.ϵ, ::SpinDegenerate,
+                          ρ::DD.AxisArrays.ρ) = begin
+    @argcheck !is_spin_polarized(ρ)
+    @argcheck !is_spin_polarized(potential)
     @argcheck :radius ∈ axisnames(ρ)
     const i = findfirst(axisnames(ρ), :radius)
-    add_radial_hartree!(ρ, potential, axisvalues(ρ)[i])
+    add_radial_hartree_potential!(potential, ρ, axisvalues(ρ)[i])
 end
-@traitfn function radial_hartree!(ρ::::(HasSpinDim), potential)
+radial_hartree_potential!(potential::DD.AxisArrays.ϵ, ::ColinearSpin,
+                          ρ::DD.AxisArrays.ρ) = begin
+    @argcheck is_spin_polarized(ρ)
+    @argcheck is_spin_polarized(potential)
     @argcheck :radius ∈ axisnames(ρ)
     const i = findfirst(axisnames(ρ), :radius)
-    add_radial_hartree!(view(ρ, Axis{:spin}(:↑)) .+ view(ρ, Axis{:spin}(:↓)),
-                        potential, axisvalues(ρ)[i])
+    add_radial_hartree_potential!(potential, 
+                                  view(ρ, Axis{:spin}(:α)) .+ view(ρ, Axis{:spin}(:β)),
+                                  axisvalues(ρ)[i])
 end
-@lintpragma("Ignore use of undeclared variable similar_potential")
-radial_hartree{Q <: DFTUnits.Ρ}(ρ::AxisArray{Q}) = radial_hartree!(ρ, similar_potential(ρ))
+radial_hartree_potential(ρ::DD.AxisArrays.ρ) = 
+    radial_hartree_potential!(similar(ρ, DH.Scalars.ϵ{eltype(one(eltype(ρ)))}), ρ)
 
 
-# immutable LDAPotential{T <: LibXC.CReal} <: AbstractPotential
-#     functional::XCFunctional{T}
-#     work::Array{T}
-# end
-#
-#
-# function RadialKohnSham(xc::Vararg{Symbol}; charge::Unitful.ChargeUnit=1u"e₀",
-#                         polarized::Bool=false)
-#     LDARadialKohnSham(map(x -> XCFunctional(x, polarized), xc), charge, ρ)
-# end
-#
-# function add_potential!{Ρ <: DFTUnits.Ρ, 𝐕 <: DFTUnits.Ε}(func::XCFunctional,
-#                                                           ρ::AxisArray{Q},
-#                                                           potential::AxisArray{𝐕})
-#    potential
-# end
-#
-# function potential!{Ρ <: DFTUnits.Ρ, 𝐕 <: DFTUnits.Ε}(func::LDARadialKohnSham,
-#                                                       ρ::AxisArray{Q},
-#                                                       potential::AxisArray{𝐕})
-#     @argcheck size(ρ) == size(potential)
-#     fill!(potential, zero(eltype(potential)))
-#
-#     𝐯 = potential(func.ϵxcs[1], ρ)
-#     potential += 𝐯
-#
-#     for i in eachindex(drop(func.ϵxcs, 1))
-#         add_potential!(func.ϵxcs[1], ρ, 𝐯)
-#     end
-#
-#     radial_hartree!(ρ, ∂ϵ_∂ρ)
-# end
+struct RadialPotential{Z <: Unitful.Charge}
+    functionals::Vector{XCFunctional{Cdouble}}
+    ionic_charge::Z
+end
+
+RadialPotential(charge::Unitful.Charge, xc::Vararg{Symbol}; polarized::Bool=false) =
+    RadialPotential([XCFunctional(x, polarized) for x in xc], charge)
+RadialPotential(xc::Vararg{Symbol}; polarized::Bool=false) =
+    RadialPotential(1u"e₀", xc; polarized=polarized)
+
+potential!(pot::DD.AxisArrays.ϵ, func::RadialPotential, ρ::DD.AxisArrays.ρ) = begin
+    @argcheck size(ρ) == size(pot)
+    @argcheck :radius ∈ axisnames(ρ)
+    fill!(pot, zero(eltype(pot)))
+
+    for functional in func.functionals
+        add_potential!(pot, functional, ρ)
+    end
+
+    add_radial_hartree_potential!(pot, ρ)
+
+    const rₛ = first(axisvalues(axis(ρ, Axis{:radius})))
+    pot .-= (func.Z * u"e₀/ϵ₀" / 4π) ./ rs
+end
+
+potential(func::RadialPotential, ρ::DD.AxisArrays.ρ) =
+    potential!(similar(ρ, DD.Scalars.ϵ), func, ρ)
+
+add_potential!(pot::DD.Arrays.ϵ, func::XCFunctional, ρ::DD.Arrays.ρ) = begin
+    if family(func) == LibXC.Constants.lda
+        pot .+= energy(func, ρ)
+    else
+        error("Potential for functional family not implemented")
+    end
+end
+    
+end

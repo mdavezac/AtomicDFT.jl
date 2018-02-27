@@ -1,7 +1,8 @@
 module AtomicDFTTests
 using AtomicDFT
 using AxisArrays
-using Unitful, UnitfulHartree
+using Unitful
+using DFTShims
 using Base.Test
 using LibXC
 
@@ -9,12 +10,8 @@ using LibXC
   include("OrbitalIndexing.jl")
 end
 
-@testset "Object creation" begin
-    include("ObjectCreation.jl")
-end
-
 @testset "Radial" begin
-    include("Radial.jl")
+  include("Radial.jl")
 end
 
 # @testset "Potentials" begin
